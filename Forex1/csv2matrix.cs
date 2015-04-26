@@ -28,7 +28,7 @@ namespace Forex1
             {
                 arrText = textSplitedtmp[y].Split(new Char[] { ',' });  // разбиваем строку на элементы
                 for (int x = 0; x <= col - 1; x++)
-                    arrDouble[y - 1, x] = Convert.ToDouble(arrText[x].Replace('.',','));   //Заполняем массив исходными данными без названий столбцов
+                    arrDouble[y - 1, x] = Convert.ToDouble(arrText[x]);   //Заполняем массив исходными данными без названий столбцов    .Replace('.',',')
             }
 
             // arrText = textSplitedtmp[0].Split(new Char[] { ',' }); // Массив названий индикаторов

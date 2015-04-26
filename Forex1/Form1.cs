@@ -29,8 +29,8 @@ namespace Forex1
         private void button1_Click(object sender, EventArgs e)
         {
 
-            string traningdatafile = @"d:\AlexNeural\probe3.csv";    //обучающая выборка
-            string testdatafile = @"d:\AlexNeural\probe33.csv";     //тестовая выборка
+            string traningdatafile = @"d:\Program Files\Alpari Limited MT5\MQL5\Files\NeuroSolutions\probe3.csv";    //обучающая выборка
+            string testdatafile = @"d:\Program Files\Alpari Limited MT5\MQL5\Files\NeuroSolutions\probe33.csv";     //тестовая выборка
 
             // читаем файл обучающей выборки
             double[,] arrDouble = csv2matrix.matrix(traningdatafile);
@@ -65,7 +65,7 @@ namespace Forex1
             ActivationNetwork network = new ActivationNetwork(
                 new BipolarSigmoidFunction(2),
                 col - 1, //  inputs in the network
-                col - 1, //  neurons in the first layer
+                (col - 1)*2, //  neurons in the first layer
                 1);        // 1 выход
             AForge.Neuro.Learning.BackPropagationLearning learning = new AForge.Neuro.Learning.BackPropagationLearning(network);
             learning.LearningRate = 0.1;
@@ -73,23 +73,35 @@ namespace Forex1
             bool needToStop = false;
             int iteration = 0;
 
+            //Создаем окно графика
             AForge.Controls.Chart chart = new AForge.Controls.Chart();
             chart.AddDataSeries("Read", Color.Red, Chart.SeriesType.ConnectedDots, 1);
             chart.AddDataSeries("Test", Color.Green, Chart.SeriesType.ConnectedDots, 1);
             groupBox1.Controls.Add(chart);
             chart.Size = new System.Drawing.Size(570, 630);
-            chart.RangeX = new Range(0, 1000);            
-            double error_p = 0;
+            chart.RangeX = new Range(0, 1000);
+
             double error = 1;
             double[,] arrDoubleTest = csv2matrix.matrix(testdatafile);
             double[,] arrTest = new double[arrDoubleTest.GetLength(0), arrDoubleTest.GetLength(1) - 1];
-            double[,] arrchartRead = new double[arrDoubleTest.GetLength(0), 2];
-            double[,] arrchartTest = new double[arrDoubleTest.GetLength(0), 2];
 
-            for (int x = 0; x < arrDoubleTest.GetLength(1) - 1; x++)            //уменьшаем матрицу из файла на первый столбец
+            double[,] arrchartRead = new double[arrDoubleTest.GetLength(0), 2]; //Массивы для графика     Исходный, вычитанный из файла
+            double[,] arrchartTest = new double[arrDoubleTest.GetLength(0), 2]; //                        и вычисленный с помощтю нейросети
+
+            for (int x = 0; x < arrDoubleTest.GetLength(1) - 1; x++)            //уменьшаем тестовую матрицу из файла на первый столбец
                 for (int y = 0; y < arrDoubleTest.GetLength(0); y++)
                     arrTest[y, x] = arrDoubleTest[y, x + 1];
+            arrTest = privedenieTest(arrTest, arrText);                         //приведение величин проверочной матрицы к виду   0..1
 
+            col = arrTest.GetLength(1);     // размеры тестовой матрицы
+            row = arrTest.GetLength(0);
+
+            for (int y = 0; y < arrDoubleTest.GetLength(0); y++)               //заполняем массив для вывода графика, проверочные значения
+            {
+                arrchartTest[y, 0] = y;
+                arrchartRead[y, 0] = y;
+                arrchartRead[y, 1] = arrDoubleTest[y, 0];
+            }
             
             
             while (!needToStop)
@@ -101,47 +113,30 @@ namespace Forex1
                     break;
                 else if (iteration < 500)     //iteration < row - 1
                 {
-                    error_p = error;
                     iteration++;
-
                     progressBar1.Value =  Convert.ToInt32(iteration * 0.2);
                 }
                 else
                     needToStop = true;
             
-
-            //network.Compute   Проверяем обученную сеть
+                //network.Compute   Проверяем обученную сеть
             
-            for (int y = 0; y < arrDoubleTest.GetLength(0); y++)               //заполняем массив для вывода графика, проверочные значения
-            {
-                arrchartTest[y, 0] = y;
-                arrchartRead[y, 0] = y;
-                arrchartRead[y, 1] = arrDoubleTest[y, 0];
-            }
-            
-            arrTest = privedenieTest(arrTest, arrText);                         //приведение величин проверочной матрицы к виду   0..1
+                double[] result = new double[1];
+                double[] res = new double[row];
+                double[] inpu = new double[col];
 
-            col = arrTest.GetLength(1);     //
-            row = arrTest.GetLength(0);
+                for (int y = 0; y < row; y++)                                       //Проверяем как работает наша нейросеть 
+                {
+                    for (int x=0; x < col; x++)
+                        inpu[x] = arrTest[y,x];
+                    result = network.Compute(inpu);
+                    arrchartTest[y,1] = result[0];                                      //заполняем вторую часть массива для гарфика, вычисленные значения
+                }
 
-                
-            double[] result = new double[1];
-            double[] res = new double[row];
-            double[] inpu = new double[col];
+                // График  
 
-            for (int y = 0; y < row; y++)                                       //Проверяем как работает наша нейросеть 
-            {
-                for (int x=0; x < col; x++)
-                    inpu[x] = arrTest[y,x];
-                result = network.Compute(inpu);
-                arrchartTest[y,1] = result[0];                                      //заполняем вторую часть массива для гарфика, вычисленные значения
-            }
-            
-
-            // График  
-
-            chart.UpdateDataSeries("Read", arrchartRead);
-            chart.UpdateDataSeries("Test", arrchartTest);
+                chart.UpdateDataSeries("Read", arrchartRead);
+                chart.UpdateDataSeries("Test", arrchartTest);
 
             }
         }
@@ -157,12 +152,12 @@ namespace Forex1
             //}
         }
 
-        private void button2_Click(object sender, EventArgs e)
-        {
-            string name = textBox1.Text;
-            double min = double.Parse(textBox2.Text.Replace(',', '.')), max = double.Parse(textBox3.Text.Replace(',', '.'));
-            addRecord(name, min, max);
-        }
+        //private void button2_Click(object sender, EventArgs e)
+        //{
+        //    string name = textBox1.Text;
+        //    double min = double.Parse(textBox2.Text.Replace(',', '.')), max = double.Parse(textBox3.Text.Replace(',', '.'));
+        //    addRecord(name, min, max);
+        //}
 
 
 
